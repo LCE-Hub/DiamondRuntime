@@ -47,6 +47,9 @@ public class GraphicsDriverConfigDialog extends ContentDialog {
     private Spinner sBCnEmulation;
     private Spinner sBCnEmulationType;
     private Spinner sBCnEmulationCache;
+    private Spinner sBCnQualityPreset;
+    private CheckBox cbASTCTranscode;
+    private CheckBox cbETC2Transcode;
     private CheckBox cbSyncFrame;
     private CheckBox cbDisablePresentWait;
 
@@ -63,6 +66,9 @@ public class GraphicsDriverConfigDialog extends ContentDialog {
     private static String selectedBCnEmulation;
     private static String selectedBCnEmulationType;
     private static String isBCnCacheEnabled;
+    private static String selectedBCnQualityPreset;
+    private static String isASTCTranscode;
+    private static String isETC2Transcode;
 
     private void loadGPUNameSpinner(Context context, Spinner spinner)  {
         String gpuNameList = FileUtils.readString(context, "gpu_cards.json");
@@ -131,6 +137,9 @@ public class GraphicsDriverConfigDialog extends ContentDialog {
                 "bcnEmulation=" + selectedBCnEmulation + ";" +
                 "bcnEmulationType=" + selectedBCnEmulationType + ";" +
                 "bcnEmulationCache=" + isBCnCacheEnabled + ";" +
+                "bcnQualityPreset=" + selectedBCnQualityPreset + ";" +
+                "astcTranscode=" + isASTCTranscode + ";" +
+                "etc2Transcode=" + isETC2Transcode + ";" +
                 "gpuName=" + selectedGPUName;
         Log.i(TAG, "Written config " + graphicsDriverConfig);
         return graphicsDriverConfig;
@@ -172,6 +181,9 @@ public class GraphicsDriverConfigDialog extends ContentDialog {
         sBCnEmulation = findViewById(R.id.SGraphicsDriverBCnEmulation);
         sBCnEmulationType = findViewById(R.id.SGraphicsDriverBCnEmulationType);
         sBCnEmulationCache = findViewById(R.id.SGraphicsDriverBCnEmulationCache);
+        sBCnQualityPreset = findViewById(R.id.SGraphicsDriverBCnQualityPreset);
+        cbASTCTranscode = findViewById(R.id.CBASTCTranscode);
+        cbETC2Transcode = findViewById(R.id.CBETC2Transcode);
         cbSyncFrame = findViewById(R.id.CBSyncFrame);
         cbDisablePresentWait = findViewById(R.id.CBDisablePresentWait);
 
@@ -189,6 +201,9 @@ public class GraphicsDriverConfigDialog extends ContentDialog {
         String bcnEmulation = config.get("bcnEmulation");
         String bcnEmulationType = config.get("bcnEmulationType");
         String bcnEmulationCache = config.get("bcnEmulationCache");
+        String bcnQualityPreset = config.getOrDefault("bcnQualityPreset", "auto");
+        String astcTranscode = config.getOrDefault("astcTranscode", "1");
+        String etc2Transcode = config.getOrDefault("etc2Transcode", "0");
 
         // Update the selectedVersion whenever the user selects a different version
         sVersion.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
@@ -314,6 +329,38 @@ public class GraphicsDriverConfigDialog extends ContentDialog {
             }
         });
 
+        sBCnQualityPreset.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+            @Override
+            public void onItemSelected(AdapterView<?> adapterView, View view, int i, long l) {
+                selectedBCnQualityPreset = sBCnQualityPreset.getSelectedItem().toString();
+            }
+
+            @Override
+            public void onNothingSelected(AdapterView<?> adapterView) {
+
+            }
+        });
+
+        isASTCTranscode = astcTranscode;
+        cbASTCTranscode.setChecked(isASTCTranscode.equals("1") ? true : false);
+        cbASTCTranscode.setOnCheckedChangeListener((buttonView, isChecked) -> {
+            if (isChecked && cbETC2Transcode.isChecked()) {
+                cbETC2Transcode.setChecked(false);
+                isETC2Transcode = "0";
+            }
+            isASTCTranscode = isChecked ? "1" : "0";
+        });
+
+        isETC2Transcode = etc2Transcode;
+        cbETC2Transcode.setChecked(isETC2Transcode.equals("1") ? true : false);
+        cbETC2Transcode.setOnCheckedChangeListener((buttonView, isChecked) -> {
+            if (isChecked && cbASTCTranscode.isChecked()) {
+                cbASTCTranscode.setChecked(false);
+                isASTCTranscode = "0";
+            }
+            isETC2Transcode = isChecked ? "1" : "0";
+        });
+
         isSyncFrame = syncFrame;
         cbSyncFrame.setChecked(isSyncFrame.equals("1") ? true : false);
         cbSyncFrame.setOnCheckedChangeListener((buttonView, isChecked) -> {
@@ -331,7 +378,7 @@ public class GraphicsDriverConfigDialog extends ContentDialog {
         contentsManager.syncContents();
         
         // Populate the spinner with available versions from ContentsManager and pre-select the initial version
-        populateGraphicsDriverVersions(anchor.getContext(), contentsManager, vulkanVersion, initialVersion, blExtensions, gpuName, maxDeviceMemory, presentMode, resourceType, bcnEmulation, bcnEmulationType, bcnEmulationCache, graphicsDriver);
+        populateGraphicsDriverVersions(anchor.getContext(), contentsManager, vulkanVersion, initialVersion, blExtensions, gpuName, maxDeviceMemory, presentMode, resourceType, bcnEmulation, bcnEmulationType, bcnEmulationCache, bcnQualityPreset, graphicsDriver);
 
         setOnConfirmCallback(() -> {
             blacklistedExtensions = mscAvailableExtensions.getUnSelectedItemsAsString();
@@ -343,7 +390,7 @@ public class GraphicsDriverConfigDialog extends ContentDialog {
         });
     }
 
-    private void populateGraphicsDriverVersions(Context context, ContentsManager contentsManager, String vulkanVersion, @Nullable String initialVersion, @Nullable String blExtensions, String gpuName, String maxDeviceMemory, String presentMode, String selectedResourceType, String bcnEmulation, String bcnEmulationType, String bcnEmulationCache, String graphicsDriver) {
+    private void populateGraphicsDriverVersions(Context context, ContentsManager contentsManager, String vulkanVersion, @Nullable String initialVersion, @Nullable String blExtensions, String gpuName, String maxDeviceMemory, String presentMode, String selectedResourceType, String bcnEmulation, String bcnEmulationType, String bcnEmulationCache, String bcnQualityPreset, String graphicsDriver) {
         List<String> wrapperVersions = new ArrayList<>();
         String[] wrapperDefaultVersions = context.getResources().getStringArray(R.array.wrapper_graphics_driver_version_entries);
 
@@ -377,6 +424,7 @@ public class GraphicsDriverConfigDialog extends ContentDialog {
         AppUtils.setSpinnerSelectionFromValue(sBCnEmulation, bcnEmulation);
         AppUtils.setSpinnerSelectionFromValue(sBCnEmulationType, bcnEmulationType);
         AppUtils.setSpinnerSelectionFromValue(sBCnEmulationCache, bcnEmulationCache);
+        AppUtils.setSpinnerSelectionFromValue(sBCnQualityPreset, bcnQualityPreset);
 
         // We can log the spinner values now
         Log.d(TAG, "Spinner selected position: " + sVersion.getSelectedItemPosition());

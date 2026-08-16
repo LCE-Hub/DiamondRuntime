@@ -166,9 +166,34 @@
                 android:id="@+id/SGraphicsDriverBCnEmulationCache"
                 android:entries="@array/bcn_emulation_cache_entries"
                 android:spinnerMode="dialog"/>
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/graphics_driver_bcn_quality_preset"
+                android:textAppearance="?android:attr/textAppearanceMedium"
+                android:paddingBottom="8dp"/>
+
+            <Spinner
+                style="@style/ComboBox"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:id="@+id/SGraphicsDriverBCnQualityPreset"
+                android:entries="@array/bcn_quality_preset_entries"
+                android:spinnerMode="dialog"/>
         </LinearLayout>
     </ScrollView>
 
+    <CheckBox
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:id="@+id/CBASTCTranscode"
+        android:text="@string/graphics_driver_astc_transcode" />
+    <CheckBox
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:id="@+id/CBETC2Transcode"
+        android:text="@string/graphics_driver_etc2_transcode" />
     <CheckBox
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"

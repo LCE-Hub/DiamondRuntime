@@ -3007,29 +3007,143 @@ public class XServerDisplayActivity extends AppCompatActivity {
         );
         envVars.put("GALLIUM_DRIVER", "zink");
 
+        Log.d("XServerDisplayActivity", "Extracting graphics driver files");
+        String driverFile = "graphics_driver/wrapper.tzst";
+        String graphicsDriverLower = graphicsDriver.toLowerCase();
+        if (graphicsDriverLower.startsWith("wrapper-leegao")) {
+            driverFile = "graphics_driver/wrapper-leegao.tzst";
+        } else if (graphicsDriverLower.startsWith("wrapper-v2")) {
+            driverFile = "graphics_driver/wrapper-v2.tzst";
+        } else if (graphicsDriverLower.startsWith("wrapper-gamenative")) {
+            driverFile = "graphics_driver/wrapper-gamenative.tzst";
+        }
+
+        File internalDriverFile = new File(getFilesDir(), driverFile);
+        if (internalDriverFile.exists()) {
+            TarCompressorUtils.extract(
+                TarCompressorUtils.Type.ZSTD,
+                internalDriverFile,
+                rootDir
+            );
+        } else {
+            TarCompressorUtils.extract(
+                TarCompressorUtils.Type.ZSTD,
+                this,
+                driverFile,
+                rootDir
+            );
+        }
+
+        String astcTranscode = graphicsDriverConfig.get("astcTranscode");
+        String etc2Transcode = graphicsDriverConfig.get("etc2Transcode");
+        boolean transcodeEnabled =
+            "1".equals(astcTranscode) || "1".equals(etc2Transcode);
+
         if (firstTimeBoot) {
             Log.d(
                 "XServerDisplayActivity",
-                "First time container boot, re-extracting libs"
+                "First time container boot, re-extracting layers and extra libs"
             );
             TarCompressorUtils.extract(
                 TarCompressorUtils.Type.ZSTD,
                 this,
-                "graphics_driver/wrapper" + ".tzst",
+                "layers.tzst",
                 rootDir
             );
-            TarCompressorUtils.extract(
-                TarCompressorUtils.Type.ZSTD,
-                this,
-                "layers" + ".tzst",
-                rootDir
+
+            File internalExtraLibs = new File(
+                getFilesDir(),
+                "graphics_driver/extra_libs.tzst"
             );
-            TarCompressorUtils.extract(
-                TarCompressorUtils.Type.ZSTD,
-                this,
-                "graphics_driver/extra_libs" + ".tzst",
-                rootDir
+            if (internalExtraLibs.exists()) {
+                TarCompressorUtils.extract(
+                    TarCompressorUtils.Type.ZSTD,
+                    internalExtraLibs,
+                    rootDir
+                );
+            } else {
+                TarCompressorUtils.extract(
+                    TarCompressorUtils.Type.ZSTD,
+                    this,
+                    "graphics_driver/extra_libs.tzst",
+                    rootDir
+                );
+            }
+
+            if (transcodeEnabled) {
+                File internalLeegaoBcn = new File(
+                    getFilesDir(),
+                    "graphics_driver/leegao_bcn.tzst"
+                );
+                if (internalLeegaoBcn.exists()) {
+                    TarCompressorUtils.extract(
+                        TarCompressorUtils.Type.ZSTD,
+                        internalLeegaoBcn,
+                        rootDir
+                    );
+                } else {
+                    TarCompressorUtils.extract(
+                        TarCompressorUtils.Type.ZSTD,
+                        this,
+                        "graphics_driver/leegao_bcn.tzst",
+                        rootDir
+                    );
+                }
+            }
+            container.putExtra(
+                "transcodeEnabled",
+                transcodeEnabled ? "1" : "0"
             );
+        } else {
+            boolean lastTranscodeEnabled = container
+                .getExtra("transcodeEnabled", "0")
+                .equals("1");
+            if (transcodeEnabled != lastTranscodeEnabled) {
+                File internalExtraLibs = new File(
+                    getFilesDir(),
+                    "graphics_driver/extra_libs.tzst"
+                );
+                if (internalExtraLibs.exists()) {
+                    TarCompressorUtils.extract(
+                        TarCompressorUtils.Type.ZSTD,
+                        internalExtraLibs,
+                        rootDir
+                    );
+                } else {
+                    TarCompressorUtils.extract(
+                        TarCompressorUtils.Type.ZSTD,
+                        this,
+                        "graphics_driver/extra_libs.tzst",
+                        rootDir
+                    );
+                }
+
+                if (transcodeEnabled) {
+                    File internalLeegaoBcn = new File(
+                        getFilesDir(),
+                        "graphics_driver/leegao_bcn.tzst"
+                    );
+                    if (internalLeegaoBcn.exists()) {
+                        TarCompressorUtils.extract(
+                            TarCompressorUtils.Type.ZSTD,
+                            internalLeegaoBcn,
+                            rootDir
+                        );
+                    } else {
+                        TarCompressorUtils.extract(
+                            TarCompressorUtils.Type.ZSTD,
+                            this,
+                            "graphics_driver/leegao_bcn.tzst",
+                            rootDir
+                        );
+                    }
+                }
+                container.putExtra(
+                    "transcodeEnabled",
+                    transcodeEnabled ? "1" : "0"
+                );
+                container.saveData();
+            }
         }
 
         if (!"System".equals(adrenoToolsDriverId)) {
@@ -3126,10 +3240,34 @@ public class XServerDisplayActivity extends AppCompatActivity {
             default -> envVars.put("WRAPPER_EMULATE_BCN", "1");
         }
 
-        String bcnEmulationCache = graphicsDriverConfig.get(
-            "bcnEmulationCache"
+        String bcnEmulationCache = graphicsDriverConfig.getOrDefault(
+            "bcnEmulationCache",
+            "1"
         );
         envVars.put("WRAPPER_USE_BCN_CACHE", bcnEmulationCache);
+        if ("0".equals(bcnEmulationCache)) {
+            envVars.put("BCN_DISABLE_DISK_CACHE", "1");
+        } else {
+            envVars.put("BCN_DISABLE_DISK_CACHE", "0");
+        }
+
+        if ("1".equals(astcTranscode)) envVars.put(
+            "BCN_TRANSCODE_TO_ASTC",
+            "1"
+        );
+
+        if ("1".equals(etc2Transcode)) envVars.put(
+            "BCN_TRANSCODE_TO_ETC2",
+            "1"
+        );
+
+        String bcnQualityPreset = graphicsDriverConfig.getOrDefault(
+            "bcnQualityPreset",
+            "auto"
+        );
+        if (!bcnQualityPreset.equals("auto")) {
+            envVars.put("BCN_QUALITY_PRESET", bcnQualityPreset);
+        }
 
         if (!vkbasaltConfig.isEmpty()) {
             envVars.put("ENABLE_VKBASALT", "1");
