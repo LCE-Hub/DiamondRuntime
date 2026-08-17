@@ -12,7 +12,9 @@ import dev.lcehub.emerald.core.DefaultVersion;
 import dev.lcehub.emerald.core.WineInfo;
 import dev.lcehub.emerald.xenvironment.ImageFsInstaller;
 import dev.lcehub.emerald.core.DownloadProgressDialog;
+import dev.lcehub.emerald.core.ProtonPackageManager;
 
+import java.io.File;
 import java.util.concurrent.Executors;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -126,33 +128,42 @@ public class LauncherBridgeActivity extends AppCompatActivity {
             }
             if (wineVersion != null && !wineVersion.isEmpty()) {
                 final String finalWineVersion = wineVersion;
-                ContainerManager manager = new ContainerManager(this);
-                manager.removeContainerAsync(container, () -> {
-                    try {
-                        JSONObject data = new JSONObject();
-                        data.put("name", CONTAINER_NAME);
-                        data.put("wineVersion", finalWineVersion);
-                        data.put("box64Version", DefaultVersion.WOWBOX64);
-                        data.put("fexcoreVersion", DefaultVersion.FEXCORE);
-                        data.put("drives", getDrivesString());
-                        ContentsManager contentsManager = new ContentsManager(this);
-                        manager.createContainerAsync(
-                            data,
-                            contentsManager,
-                            newContainer -> {
-                                if (newContainer != null) {
-                                    AppUtils.showToast(this, "Switched to " + finalWineVersion);
-                                } else {
-                                    AppUtils.showToast(this, "Failed to create container");
-                                }
-                                finish();
+                ProtonPackageManager.PackageInfo pkg = ProtonPackageManager.getPackage(finalWineVersion);
+                if (pkg != null && !ProtonPackageManager.isInstalled(this, finalWineVersion)) {
+                    DownloadProgressDialog dialog = new DownloadProgressDialog(this);
+                    dialog.show(R.string.installing_wine_files);
+                    Executors.newSingleThreadExecutor().execute(() -> {
+                        File tmpFile = new File(getCacheDir(), pkg.fileName);
+                        boolean downloaded = ProtonPackageManager.downloadPackage(pkg, tmpFile, progress ->
+                            runOnUiThread(() -> dialog.setProgress(progress)));
+                        if (downloaded) {
+                            boolean installed = ProtonPackageManager.installPackage(this, finalWineVersion, tmpFile);
+                            tmpFile.delete();
+                            if (!installed) {
+                                runOnUiThread(() -> {
+                                    dialog.closeOnUiThread();
+                                    AppUtils.showToast(this, "Failed to install " + finalWineVersion);
+                                    finish();
+                                });
+                                return;
                             }
-                        );
-                    } catch (JSONException e) {
-                        AppUtils.showToast(this, "Failed to switch Proton version");
-                        finish();
-                    }
-                });
+                        } else {
+                            tmpFile.delete();
+                            runOnUiThread(() -> {
+                                dialog.closeOnUiThread();
+                                AppUtils.showToast(this, "Failed to download " + finalWineVersion);
+                                finish();
+                            });
+                            return;
+                        }
+                        runOnUiThread(() -> {
+                            dialog.closeOnUiThread();
+                            doSwitchProton(container, finalWineVersion);
+                        });
+                    });
+                } else {
+                    doSwitchProton(container, finalWineVersion);
+                }
             } else {
                 finish();
             }
@@ -188,6 +199,36 @@ public class LauncherBridgeActivity extends AppCompatActivity {
         } else {
             finish();
         }
+    }
+
+    private void doSwitchProton(Container container, String wineVersion) {
+        ContainerManager manager = new ContainerManager(this);
+        manager.removeContainerAsync(container, () -> {
+            try {
+                JSONObject data = new JSONObject();
+                data.put("name", CONTAINER_NAME);
+                data.put("wineVersion", wineVersion);
+                data.put("box64Version", DefaultVersion.WOWBOX64);
+                data.put("fexcoreVersion", DefaultVersion.FEXCORE);
+                data.put("drives", getDrivesString());
+                ContentsManager contentsManager = new ContentsManager(this);
+                manager.createContainerAsync(
+                    data,
+                    contentsManager,
+                    newContainer -> {
+                        if (newContainer != null) {
+                            AppUtils.showToast(this, "Switched to " + wineVersion);
+                        } else {
+                            AppUtils.showToast(this, "Failed to create container");
+                        }
+                        finish();
+                    }
+                );
+            } catch (JSONException e) {
+                AppUtils.showToast(this, "Failed to switch Proton version");
+                finish();
+            }
+        });
     }
 
     private void updateDrives(Container container) {
