@@ -111,6 +111,10 @@ public class WindowManager extends XResourceManager {
                 parent.sendEvent(Event.SUBSTRUCTURE_NOTIFY, new MapNotify(parent, window));
                 window.sendEvent(Event.EXPOSURE, new Expose(window));
                 triggerOnMapWindow(window);
+                String name = window.getName();
+                if (name != null && name.toLowerCase().contains("minecraft")) {
+                    setFocus(window, FocusRevertTo.NONE);
+                }
             }
             else parent.sendEvent(Event.SUBSTRUCTURE_REDIRECT, new MapRequest(parent, window));
         }
