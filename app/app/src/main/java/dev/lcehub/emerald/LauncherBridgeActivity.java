@@ -11,6 +11,9 @@ import dev.lcehub.emerald.core.AppUtils;
 import dev.lcehub.emerald.core.DefaultVersion;
 import dev.lcehub.emerald.core.WineInfo;
 import dev.lcehub.emerald.xenvironment.ImageFsInstaller;
+import dev.lcehub.emerald.contentdialog.DownloadProgressDialog;
+
+import java.util.concurrent.Executors;
 import org.json.JSONException;
 import org.json.JSONObject;
 
@@ -23,6 +26,9 @@ public class LauncherBridgeActivity extends AppCompatActivity {
     public static final String ACTION_PLAY = "play";
     public static final String ACTION_OPEN = "open";
     public static final String ACTION_SETTINGS = "settings";
+    public static final String ACTION_SWITCH_PROTON = "switch_proton";
+    public static final String ACTION_INSTALL_DRIVER = "install_driver";
+    public static final String ACTION_SET_AUDIO_BACKEND = "set_audio_backend";
 
     public static final String CONTAINER_NAME = "DiamondEmerald";
     public static final String GAME_EXECUTABLE = "Minecraft.Client.exe";
@@ -60,10 +66,6 @@ public class LauncherBridgeActivity extends AppCompatActivity {
 
         if (container != null) {
             updateDrives(container);
-            if (container.getAudioDriver().equals("alsa")) {
-                container.setAudioDriver(Container.DEFAULT_AUDIO_DRIVER);
-                container.saveData();
-            }
             onContainerReady(container);
             return;
         }
@@ -112,8 +114,79 @@ public class LauncherBridgeActivity extends AppCompatActivity {
             Intent intent = new Intent(this, MainActivity.class);
             intent.putExtra("container_settings_id", container.id);
             startActivity(intent);
+        } else if (ACTION_SWITCH_PROTON.equals(action)) {
+            String wineVersion = null;
+            if (extraArgs != null) {
+                try {
+                    org.json.JSONArray arr = new org.json.JSONArray(extraArgs);
+                    if (arr.length() > 0) wineVersion = arr.getString(0);
+                } catch (JSONException e) {
+                    wineVersion = extraArgs;
+                }
+            }
+            if (wineVersion != null && !wineVersion.isEmpty()) {
+                ContainerManager manager = new ContainerManager(this);
+                manager.removeContainerAsync(container, () -> {
+                    try {
+                        JSONObject data = new JSONObject();
+                        data.put("name", CONTAINER_NAME);
+                        data.put("wineVersion", wineVersion);
+                        data.put("box64Version", DefaultVersion.WOWBOX64);
+                        data.put("fexcoreVersion", DefaultVersion.FEXCORE);
+                        data.put("drives", getDrivesString());
+                        ContentsManager contentsManager = new ContentsManager(this);
+                        manager.createContainerAsync(
+                            data,
+                            contentsManager,
+                            newContainer -> {
+                                if (newContainer != null) {
+                                    AppUtils.showToast(this, "Switched to " + wineVersion);
+                                } else {
+                                    AppUtils.showToast(this, "Failed to create container");
+                                }
+                                finish();
+                            }
+                        );
+                    } catch (JSONException e) {
+                        AppUtils.showToast(this, "Failed to switch Proton version");
+                        finish();
+                    }
+                });
+            } else {
+                finish();
+            }
+        } else if (ACTION_INSTALL_DRIVER.equals(action)) {
+            dev.lcehub.emerald.contentdialog.DownloadProgressDialog dialog = new dev.lcehub.emerald.contentdialog.DownloadProgressDialog(this);
+            dialog.show(R.string.installing_wine_files);
+            ContentsManager contentsManager = new ContentsManager(this);
+            Executors.newSingleThreadExecutor().execute(() -> {
+                ImageFsInstaller.installDriversFromAssets(dialog, this);
+                runOnUiThread(() -> {
+                    dialog.closeOnUiThread();
+                    AppUtils.showToast(this, "Drivers installed");
+                    finish();
+                });
+            });
+            return;
+        } else if (ACTION_SET_AUDIO_BACKEND.equals(action)) {
+            String backend = null;
+            if (extraArgs != null) {
+                try {
+                    org.json.JSONArray arr = new org.json.JSONArray(extraArgs);
+                    if (arr.length() > 0) backend = arr.getString(0);
+                } catch (JSONException e) {
+                    backend = extraArgs;
+                }
+            }
+            if (backend != null && !backend.isEmpty()) {
+                container.setAudioDriver(backend);
+                container.saveData();
+                AppUtils.showToast(this, "Audio set to " + backend);
+            }
+            finish();
+        } else {
+            finish();
         }
-        finish();
     }
 
     private void updateDrives(Container container) {
