@@ -125,12 +125,13 @@ public class LauncherBridgeActivity extends AppCompatActivity {
                 }
             }
             if (wineVersion != null && !wineVersion.isEmpty()) {
+                final String finalWineVersion = wineVersion;
                 ContainerManager manager = new ContainerManager(this);
                 manager.removeContainerAsync(container, () -> {
                     try {
                         JSONObject data = new JSONObject();
                         data.put("name", CONTAINER_NAME);
-                        data.put("wineVersion", wineVersion);
+                        data.put("wineVersion", finalWineVersion);
                         data.put("box64Version", DefaultVersion.WOWBOX64);
                         data.put("fexcoreVersion", DefaultVersion.FEXCORE);
                         data.put("drives", getDrivesString());
@@ -140,7 +141,7 @@ public class LauncherBridgeActivity extends AppCompatActivity {
                             contentsManager,
                             newContainer -> {
                                 if (newContainer != null) {
-                                    AppUtils.showToast(this, "Switched to " + wineVersion);
+                                    AppUtils.showToast(this, "Switched to " + finalWineVersion);
                                 } else {
                                     AppUtils.showToast(this, "Failed to create container");
                                 }
