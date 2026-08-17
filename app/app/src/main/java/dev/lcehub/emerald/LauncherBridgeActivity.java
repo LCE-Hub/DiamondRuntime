@@ -11,7 +11,7 @@ import dev.lcehub.emerald.core.AppUtils;
 import dev.lcehub.emerald.core.DefaultVersion;
 import dev.lcehub.emerald.core.WineInfo;
 import dev.lcehub.emerald.xenvironment.ImageFsInstaller;
-import dev.lcehub.emerald.contentdialog.DownloadProgressDialog;
+import dev.lcehub.emerald.core.DownloadProgressDialog;
 
 import java.util.concurrent.Executors;
 import org.json.JSONException;
@@ -156,7 +156,7 @@ public class LauncherBridgeActivity extends AppCompatActivity {
                 finish();
             }
         } else if (ACTION_INSTALL_DRIVER.equals(action)) {
-            dev.lcehub.emerald.contentdialog.DownloadProgressDialog dialog = new dev.lcehub.emerald.contentdialog.DownloadProgressDialog(this);
+            DownloadProgressDialog dialog = new DownloadProgressDialog(this);
             dialog.show(R.string.installing_wine_files);
             ContentsManager contentsManager = new ContentsManager(this);
             Executors.newSingleThreadExecutor().execute(() -> {
