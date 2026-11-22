@@ -9,6 +9,7 @@ import android.graphics.Point;
 import android.os.CancellationSignal;
 import android.os.ParcelFileDescriptor;
 import android.provider.DocumentsContract.Document;
+import android.provider.DocumentsContract.Path;
 import android.provider.DocumentsContract.Root;
 import android.provider.DocumentsProvider;
 import android.webkit.MimeTypeMap;
@@ -124,6 +125,37 @@ public class WinlatorFilesProvider extends DocumentsProvider {
         row.add(Root.COLUMN_AVAILABLE_BYTES, BASE_DIR.getFreeSpace());
         row.add(Root.COLUMN_ICON, R.mipmap.ic_launcher);
         return result;
+    }
+
+    @Override
+    public Path findDocumentPath(String parentDocumentId, String childDocumentId) throws FileNotFoundException {
+        getFileForDocId(childDocumentId);
+        final String rootId = getDocIdForFile(BASE_DIR);
+        if (parentDocumentId != null) {
+            final File parent = getFileForDocId(parentDocumentId);
+            final LinkedList<String> path = new LinkedList<>();
+            File current = getFileForDocId(childDocumentId);
+            while (current != null && !current.equals(parent)) {
+                path.addFirst(getDocIdForFile(current));
+                current = current.getParentFile();
+            }
+            if (current == null) {
+                throw new FileNotFoundException("Document is not inside parent: " + childDocumentId);
+            }
+            path.addFirst(getDocIdForFile(parent));
+            return new Path(null, path);
+        }
+        final LinkedList<String> path = new LinkedList<>();
+        File current = getFileForDocId(childDocumentId);
+        while (current != null && !current.equals(BASE_DIR)) {
+            path.addFirst(getDocIdForFile(current));
+            current = current.getParentFile();
+        }
+        if (current == null) {
+            throw new FileNotFoundException("Document is not inside root: " + childDocumentId);
+        }
+        path.addFirst(rootId);
+        return new Path(rootId, path);
     }
 
     @Override

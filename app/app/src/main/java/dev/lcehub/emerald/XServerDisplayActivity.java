@@ -717,9 +717,9 @@ public class XServerDisplayActivity extends AppCompatActivity {
             NOTIFICATION_CHANNEL_ID
         )
             .setSmallIcon(R.drawable.ic_stat_ab_gear_0011)
-            .setContentTitle("Winlator")
+            .setContentTitle("Emerald Launcher")
             .setContentText(
-                "Winlator is running, do not kill or swipe this notification"
+                "DiamondRuntime is running, do not kill or swipe this notification"
             )
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setContentIntent(pendingIntent)
@@ -1235,8 +1235,7 @@ public class XServerDisplayActivity extends AppCompatActivity {
         if (containerDataChanged) container.saveData();
     }
 
-    private void setupXEnvironment()
-        throws PackageManager.NameNotFoundException {
+    private void setupXEnvironment() throws PackageManager.NameNotFoundException {
         envVars.put("LC_ALL", lc_all);
         envVars.put("WINEPREFIX", imageFs.wineprefix);
 
